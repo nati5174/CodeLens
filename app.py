@@ -2,14 +2,17 @@ from flask import Flask, render_template, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField, FileField
 from wtforms.validators import InputRequired, Length, ValidationError
 from flask_bcrypt import Bcrypt
-
+import os
+from flask_wtf.file import FileAllowed
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI']
 app.config['SECRET_KEY']
+app.config['UPLOAD_FOLDER']
 
 db = SQLAlchemy(app)
 
@@ -48,6 +51,11 @@ class LoginForm(FlaskForm):
 
     submit = SubmitField("Login")
 
+class UploadForm(FlaskForm):
+    file = FileField("Image", validators=[InputRequired(), FileAllowed(['jpg', 'png'], 'Images only!')])
+    submit = SubmitField("Submit for Code")
+
+
 @app.route('/')
 def home():
     return render_template('home.html')
@@ -70,7 +78,14 @@ def login():
 @app.route('/dashboard', methods=['GET', 'POST'])
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    form = UploadForm()
+
+    if form.validate_on_submit():
+        file = form.file.data
+        file.save(os.path.join(os.path.abspath(os.path.dirname(__file__)),app.config['UPLOAD_FOLDER'],secure_filename(file.filename))) # Then save the file
+        return "File has been saved"
+
+    return render_template('dashboard.html', form=form)
 
 @app.route('/logout', methods=['GET', 'POST'])
 @login_required
@@ -93,6 +108,8 @@ def registar():
 
 
     return render_template('registar.html', form=form )
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
